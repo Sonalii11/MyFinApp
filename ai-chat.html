@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FinSphere — AI Assistant</title>
+<link rel="stylesheet" href="shared.css"/>
+<style>
+  .chat-wrap {
+    display: flex;
+    gap: 20px;
+    height: calc(100vh - 130px);
+  }
+  .chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .chat-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .chat-row.user { justify-content: flex-end; }
+  .ai-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--pink));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .chat-input-row {
+    padding: 16px 0;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+  }
+  .chat-sidebar {
+    width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: bounce 0.8s ease infinite;
+  }
+</style>
+</head>
+<body>
+<div id="bg-glow" class="bg-glow"></div>
+<div class="app-shell">
+  <nav id="sidebar" class="sidebar"></nav>
+  <div class="main-content">
+    <div id="topbar" class="topbar"></div>
+    <div class="page z1" style="padding-bottom:0">
+
+      <div class="chat-wrap">
+        <!-- Chat Area -->
+        <div class="chat-main">
+          <div class="chat-messages" id="messages"></div>
+          <div class="chat-input-row">
+            <input id="chatInput" class="input" placeholder="Ask about your finances…" style="flex:1"
+              onkeydown="if(event.key==='Enter') sendMsg()"/>
+            <button class="btn btn-primary" onclick="sendMsg()">→</button>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="chat-sidebar">
+          <div class="card">
+            <div class="sec-title" style="margin-bottom:12px">Quick Questions</div>
+            <div style="display:flex;flex-direction:column;gap:6px" id="suggestions"></div>
+          </div>
+          <div class="card">
+            <div class="sec-title" style="margin-bottom:12px">📊 Quick Stats</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;font-size:13px">
+                <span class="text2">Monthly Spend</span><span style="font-weight:600">₹8,003</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px">
+                <span class="text2">Transactions</span><span style="font-weight:600">8</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px">
+                <span class="text2">Top Category</span><span style="font-weight:600">Food 🍔</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px">
+                <span class="text2">Savings Rate</span><span style="font-weight:600">75.2%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+renderShell('ai-chat', 'AI Financial Assistant');
+
+const RESPONSES = {
+  food:    "🍽️ You've spent ₹2,835 on food this month — 23% above your usual average. Consider meal prepping to cut costs by ₹800–1,200/month.",
+  save:    "💡 Based on your income and spending, you can save ₹8,500 more this month by reducing dining out and entertainment by 30%.",
+  invest:  "📈 Your current portfolio has a 12.4% annual return. I recommend rebalancing: reduce cash by 5% and add to index funds for better long-term growth.",
+  subs:    "📊 You're spending ₹2,525/month on subscriptions. Consider pausing Hotstar if you use Netflix more — saves ₹899/month.",
+  budget:  "💰 Monthly budget utilization: Food 78%, Travel 45%, Bills 92%, Entertainment 60%. Bills need attention!",
+  tip:     "🎯 Pro tip: Moving ₹5,000/month to a SIP in NIFTY 50 index fund could grow to ₹8.5L in 10 years at 12% returns.",
+  default: "I analyzed your spending patterns. Try asking me about food, savings, investments, subscriptions, or your budget!"
+};
+
+function getReply(msg) {
+  const m = msg.toLowerCase();
+  if (m.includes('food') || m.includes('eat') || m.includes('zomato')) return RESPONSES.food;
+  if (m.includes('save') || m.includes('saving'))                       return RESPONSES.save;
+  if (m.includes('invest') || m.includes('stock') || m.includes('portfolio')) return RESPONSES.invest;
+  if (m.includes('sub') || m.includes('netflix') || m.includes('spotify'))    return RESPONSES.subs;
+  if (m.includes('budget') || m.includes('spend'))  return RESPONSES.budget;
+  if (m.includes('tip') || m.includes('suggest') || m.includes('advice')) return RESPONSES.tip;
+  return RESPONSES.default;
+}
+
+const SUGGESTIONS = [
+  'How can I save more?',
+  'Analyze my food spending',
+  'Investment tips',
+  'Review my subscriptions',
+  'What is my budget status?',
+  'Give me a money tip',
+];
+
+const sugDiv = document.getElementById('suggestions');
+SUGGESTIONS.forEach(s => {
+  sugDiv.innerHTML += `<button class="btn btn-outline btn-sm" style="justify-content:flex-start;text-align:left" onclick="sendMsg('${s}')">${s}</button>`;
+});
+
+function addMsg(role, text) {
+  const box = document.getElementById('messages');
+  if (role === 'ai') {
+    box.innerHTML += `
+      <div class="chat-row">
+        <div class="ai-avatar">✦</div>
+        <div class="chat-bubble chat-ai">${text}</div>
+      </div>`;
+  } else {
+    box.innerHTML += `
+      <div class="chat-row user">
+        <div class="chat-bubble chat-user">${text}</div>
+      </div>`;
+  }
+  box.scrollTop = box.scrollHeight;
+}
+
+function showTyping() {
+  const box = document.getElementById('messages');
+  box.innerHTML += `
+    <div class="chat-row" id="typingIndicator">
+      <div class="ai-avatar">✦</div>
+      <div class="chat-bubble chat-ai" style="display:flex;gap:4px;padding:14px 18px">
+        <div class="dot" style="animation-delay:0s"></div>
+        <div class="dot" style="animation-delay:0.15s"></div>
+        <div class="dot" style="animation-delay:0.3s"></div>
+      </div>
+    </div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+let busy = false;
+async function sendMsg(preset) {
+  if (busy) return;
+  const input = document.getElementById('chatInput');
+  const text  = preset || input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMsg('user', text);
+  busy = true;
+  showTyping();
+  await new Promise(r => setTimeout(r, 800));
+  removeTyping();
+  addMsg('ai', getReply(text));
+  busy = false;
+}
+
+// Initial greeting
+addMsg('ai', "👋 Hi! I'm FinAI, your personal financial assistant. I can help you understand your spending, suggest savings, share investment tips, and more. What would you like to know?");
+</script>
+</body>
+</html>

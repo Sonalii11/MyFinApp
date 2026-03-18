@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FinSphere — Subscriptions</title>
+<link rel="stylesheet" href="shared.css"/>
+</head>
+<body>
+<div id="bg-glow" class="bg-glow"></div>
+<div class="app-shell">
+  <nav id="sidebar" class="sidebar"></nav>
+  <div class="main-content">
+    <div id="topbar" class="topbar"></div>
+    <div class="page z1">
+
+      <!-- Summary Stats -->
+      <div class="grid-3 gap-16" style="margin-bottom:24px" id="summaryCards"></div>
+
+      <!-- Budget Bar -->
+      <div class="card" style="margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:14px;font-weight:600">Subscription Budget Usage</span>
+          <span id="budgetLabel" style="font-size:14px;color:var(--orange)"></span>
+        </div>
+        <div class="progress-bar">
+          <div id="budgetBar" class="progress-fill" style="background:linear-gradient(90deg,var(--accent),var(--pink))"></div>
+        </div>
+        <div id="budgetMsg" style="font-size:12px;color:var(--text2);margin-top:8px"></div>
+      </div>
+
+      <!-- Subscription Cards -->
+      <div class="grid-2 gap-12" id="subGrid" style="margin-bottom:24px"></div>
+
+      <!-- Renewal Timeline -->
+      <div class="card">
+        <div class="sec-title" style="margin-bottom:16px">📅 Upcoming Renewals</div>
+        <div id="renewalList"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+renderShell('subscriptions', 'Subscription Manager');
+
+let subs = [
+  { id:1, name:'Netflix',      icon:'🎬', price:649, date:'Mar 22', color:'#e50914', tag:'Entertainment' },
+  { id:2, name:'Spotify',      icon:'🎵', price:119, date:'Mar 19', color:'#1db954', tag:'Music'         },
+  { id:3, name:'Amazon Prime', icon:'📦', price:299, date:'Apr 1',  color:'#ff9900', tag:'Shopping'      },
+  { id:4, name:'Hotstar',      icon:'⭐', price:899, date:'Apr 5',  color:'#1c44b9', tag:'OTT'           },
+  { id:5, name:'Notion',       icon:'📝', price:160, date:'Mar 28', color:'#aaaaaa', tag:'Productivity'  },
+  { id:6, name:'Canva Pro',    icon:'🎨', price:399, date:'Apr 10', color:'#00c4cc', tag:'Design'        },
+];
+
+const BUDGET = 3000;
+
+function daysLeft(dateStr) {
+  return dateStr.includes('Mar')
+    ? parseInt(dateStr.split(' ')[1]) - 18
+    : parseInt(dateStr.split(' ')[1]) + 13;
+}
+
+function renderAll() {
+  const total  = subs.reduce((s,x) => s+x.price, 0);
+  const annual = total * 12;
+
+  // Summary
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Monthly Cost</div>
+      <div class="syne" style="font-size:28px;font-weight:700;color:var(--accent2)">₹${total.toLocaleString()}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Annual Cost</div>
+      <div class="syne" style="font-size:28px;font-weight:700;color:var(--red)">₹${annual.toLocaleString()}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Plans</div>
+      <div class="syne" style="font-size:28px;font-weight:700;color:var(--green)">${subs.length}</div>
+    </div>`;
+
+  // Budget bar
+  const pct = Math.min(100, (total / BUDGET) * 100);
+  document.getElementById('budgetBar').style.width   = pct + '%';
+  document.getElementById('budgetLabel').textContent = `₹${total} / ₹${BUDGET.toLocaleString()}`;
+  document.getElementById('budgetMsg').textContent   =
+    total > BUDGET
+      ? `⚠️ ₹${total - BUDGET} over budget — consider pausing some subscriptions`
+      : `✓ ₹${BUDGET - total} remaining in budget`;
+
+  // Sub grid
+  document.getElementById('subGrid').innerHTML = subs.map(s => {
+    const dl     = daysLeft(s.date);
+    const urgent = dl <= 5;
+    return `
+      <div class="sub-card">
+        <div class="sub-logo" style="background:${s.color}22;font-size:26px">${s.icon}</div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:600;font-size:15px">${s.name}</span>
+            <span class="syne" style="font-weight:700;font-size:16px">₹${s.price}/mo</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px">
+            <span class="tag tag-blue" style="font-size:10px">${s.tag}</span>
+            <span class="tag ${urgent?'tag-red':'tag-green'}" style="font-size:10px">
+              ${urgent ? '⚠️ Due ' + s.date : '✓ ' + s.date}
+            </span>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red);border:none;font-size:16px" onclick="removeSub(${s.id})">✕</button>
+      </div>`;
+  }).join('');
+
+  // Renewal list
+  const sorted = [...subs].sort((a,b) => daysLeft(a.date) - daysLeft(b.date));
+  document.getElementById('renewalList').innerHTML = sorted.map(s => {
+    const dl = daysLeft(s.date);
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:22px">${s.icon}</div>
+        <div style="flex:1">
+          <span style="font-weight:500">${s.name}</span>
+          <span style="color:var(--text2);font-size:12px;margin-left:8px">${s.date}</span>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Syne',sans-serif;font-weight:700">₹${s.price}</div>
+          <div style="font-size:12px;color:${dl<=5?'var(--red)':'var(--text2)'}">
+            ${dl <= 0 ? 'Due today!' : `in ${dl} days`}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function removeSub(id) {
+  subs = subs.filter(s => s.id !== id);
+  renderAll();
+}
+
+renderAll();
+</script>
+</body>
+</html>

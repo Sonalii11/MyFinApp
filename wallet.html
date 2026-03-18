@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FinSphere — Digital Wallet</title>
+<link rel="stylesheet" href="shared.css"/>
+</head>
+<body>
+<div id="bg-glow" class="bg-glow"></div>
+<div class="app-shell">
+  <nav id="sidebar" class="sidebar"></nav>
+  <div class="main-content">
+    <div id="topbar" class="topbar"></div>
+    <div class="page z1">
+
+      <!-- Wallet Card -->
+      <div class="wallet-card" style="margin-bottom:24px">
+        <div style="position:relative;z-index:1">
+          <div style="font-size:12px;opacity:0.8;margin-bottom:4px;font-weight:500">TOTAL BALANCE</div>
+          <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800;letter-spacing:-1px" id="balanceDisplay">₹1,24,680.50</div>
+          <div style="margin-top:12px;opacity:0.7;font-size:13px">•••• •••• •••• 4821</div>
+          <div style="display:flex;justify-content:space-between;margin-top:20px">
+            <div><div style="font-size:10px;opacity:0.6">CARDHOLDER</div><div style="font-weight:600">Aryan Mehta</div></div>
+            <div><div style="font-size:10px;opacity:0.6">EXPIRES</div><div style="font-weight:600">09/29</div></div>
+            <div style="font-size:28px;opacity:0.6">◎◎</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="grid-4 gap-16" style="margin-bottom:24px">
+        <div class="card" style="text-align:center;cursor:pointer" onmouseenter="this.style.transform='translateY(-3px)'" onmouseleave="this.style.transform='translateY(0)'">
+          <div style="width:48px;height:48px;border-radius:50%;background:rgba(124,109,250,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px;color:var(--accent)">↗</div>
+          <div style="font-weight:600;font-size:14px">Send</div>
+        </div>
+        <div class="card" style="text-align:center;cursor:pointer" onmouseenter="this.style.transform='translateY(-3px)'" onmouseleave="this.style.transform='translateY(0)'">
+          <div style="width:48px;height:48px;border-radius:50%;background:rgba(34,212,160,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px;color:var(--green)">↙</div>
+          <div style="font-weight:600;font-size:14px">Receive</div>
+        </div>
+        <div class="card" style="text-align:center;cursor:pointer" onmouseenter="this.style.transform='translateY(-3px)'" onmouseleave="this.style.transform='translateY(0)'">
+          <div style="width:48px;height:48px;border-radius:50%;background:rgba(245,166,35,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px;color:var(--orange)">▦</div>
+          <div style="font-weight:600;font-size:14px">Scan QR</div>
+        </div>
+        <div class="card" style="text-align:center;cursor:pointer" onmouseenter="this.style.transform='translateY(-3px)'" onmouseleave="this.style.transform='translateY(0)'">
+          <div style="width:48px;height:48px;border-radius:50%;background:rgba(244,114,182,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px;color:var(--pink)">＋</div>
+          <div style="font-weight:600;font-size:14px">Add Card</div>
+        </div>
+      </div>
+
+      <!-- Send Form + History -->
+      <div class="grid-2 gap-16">
+        <div class="card">
+          <div class="sec-title" style="margin-bottom:16px">Send Money</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="input-group">
+              <div class="input-label">To (UPI ID / Name)</div>
+              <input id="sendTo" class="input" placeholder="name@upi"/>
+            </div>
+            <div class="input-group">
+              <div class="input-label">Amount (₹)</div>
+              <input id="sendAmt" class="input" type="number" placeholder="Enter amount"/>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" style="flex:1" onclick="setQuick(100)">₹100</button>
+              <button class="btn btn-outline btn-sm" style="flex:1" onclick="setQuick(200)">₹200</button>
+              <button class="btn btn-outline btn-sm" style="flex:1" onclick="setQuick(500)">₹500</button>
+              <button class="btn btn-outline btn-sm" style="flex:1" onclick="setQuick(1000)">₹1000</button>
+            </div>
+            <button class="btn btn-primary w-full" onclick="sendMoney()">Send Money</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sec-header">
+            <span class="sec-title">Transactions</span>
+            <span class="tag tag-blue">Recent</span>
+          </div>
+          <div id="txList"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+renderShell('wallet', 'Digital Wallet');
+
+let balance = 124680.50;
+let txs = [
+  { id:1, name:'Rahul Sharma',    type:'sent',     amount:500,   time:'2h ago' },
+  { id:2, name:'Salary Credit',   type:'received', amount:68000, time:'Mar 1'  },
+  { id:3, name:'Priya M.',        type:'sent',     amount:1200,  time:'Mar 15' },
+  { id:4, name:'Cashback Reward', type:'received', amount:84,    time:'Mar 14' },
+  { id:5, name:'Suresh K.',       type:'sent',     amount:350,   time:'Mar 10' },
+];
+
+function renderTx() {
+  document.getElementById('txList').innerHTML = txs.slice(0,6).map(tx => `
+    <div class="tx-item">
+      <div class="tx-icon" style="background:var(--bg3)">${tx.type==='received'?'💼':'👤'}</div>
+      <div class="tx-info">
+        <div class="tx-name">${tx.name}</div>
+        <div class="tx-meta">${tx.time}</div>
+      </div>
+      <div class="tx-amount ${tx.type==='received'?'up':'down'}">
+        ${tx.type==='received'?'+':'-'}₹${tx.amount.toLocaleString()}
+      </div>
+    </div>`).join('');
+}
+
+function setQuick(v) { document.getElementById('sendAmt').value = v; }
+
+function sendMoney() {
+  const to  = document.getElementById('sendTo').value.trim();
+  const amt = parseFloat(document.getElementById('sendAmt').value);
+  if (!to || !amt || amt <= 0) return;
+  txs.unshift({ id: Date.now(), name: to, type:'sent', amount: amt, time:'just now' });
+  balance -= amt;
+  document.getElementById('balanceDisplay').textContent = '₹' + balance.toLocaleString('en-IN', {minimumFractionDigits:2});
+  document.getElementById('sendTo').value  = '';
+  document.getElementById('sendAmt').value = '';
+  renderTx();
+}
+
+renderTx();
+</script>
+</body>
+</html>
