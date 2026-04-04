@@ -1,12 +1,13 @@
 import React from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import './index.css';
 import { AppProvider, useApp } from './context/AppContext';
 import Sidebar from './components/Sidebar';
 import Topbar  from './components/Topbar';
 import { Toast } from './components/UI';
+import TransactionModal from './components/TransactionModal';
 import Dashboard     from './pages/Dashboard';
 import Expenses      from './pages/Expenses';
-import ChartsPage    from './pages/ChartsPage';
 import Wallet        from './pages/Wallet';
 import Investments   from './pages/Investments';
 import Subscriptions from './pages/Subscriptions';
@@ -14,29 +15,48 @@ import AIChat        from './pages/AIChat';
 
 function GlowBg() {
   return (
-    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'var(--accent)', filter: 'blur(120px)', opacity: 0.07, top: -120, left: 40 }} />
-      <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'var(--pink)', filter: 'blur(100px)', opacity: 0.06, bottom: 60, right: 80 }} />
-      <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', background: 'var(--green)', filter: 'blur(90px)', opacity: 0.05, top: '45%', left: '35%' }} />
+    <div className="bg-glow" aria-hidden="true">
+      <div className="glow-dot glow-1" />
+      <div className="glow-dot glow-2" />
+      <div className="glow-dot glow-3" />
     </div>
   );
 }
 
-function Pages() {
-  const { page, toast } = useApp();
-  const map = {
-    dashboard:     <Dashboard />,
-    expenses:      <Expenses />,
-    charts:        <ChartsPage />,
-    wallet:        <Wallet />,
-    investments:   <Investments />,
-    subscriptions: <Subscriptions />,
-    ai:            <AIChat />,
-  };
+function RoutedPages() {
+  const location = useLocation();
+  const { toast, transactionModal, closeTransactionModal } = useApp();
+
   return (
     <>
-      {map[page] || <Dashboard />}
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/expenses" element={<Expenses />} />
+        <Route path="/wallet" element={<Wallet />} />
+        <Route path="/investments" element={<Investments />} />
+        <Route path="/subscriptions" element={<Subscriptions />} />
+        <Route path="/ai-chat" element={<AIChat />} />
+        <Route path="*" element={<Navigate to="/" replace state={{ from: location }} />} />
+      </Routes>
       {toast && <Toast msg={toast.msg} type={toast.type} />}
+      {transactionModal?.isOpen ? (
+        <TransactionModal type={transactionModal.type} onClose={closeTransactionModal} />
+      ) : null}
+    </>
+  );
+}
+
+function AppShell() {
+  return (
+    <>
+      <GlowBg />
+      <div className="app-shell">
+        <Sidebar />
+        <div className="main-content">
+          <Topbar />
+          <RoutedPages />
+        </div>
+      </div>
     </>
   );
 }
@@ -44,16 +64,7 @@ function Pages() {
 export default function App() {
   return (
     <AppProvider>
-      <GlowBg />
-      <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-        <Sidebar />
-        <div style={{ marginLeft: 68, flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <Topbar />
-          <main style={{ flex: 1, overflowY: 'auto' }}>
-            <Pages />
-          </main>
-        </div>
-      </div>
+      <AppShell />
     </AppProvider>
   );
 }
