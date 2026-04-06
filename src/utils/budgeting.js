@@ -152,7 +152,12 @@ export function getMonthlyRollupsForYear(transactions, value = new Date()) {
 
 export function sortTransactionsNewestFirst(transactions) {
   return [...transactions].sort((left, right) => {
-    if (left.date === right.date) return String(right.id).localeCompare(String(left.id));
+    if (left.date === right.date) {
+      const leftTime = String(left.time || '00:00');
+      const rightTime = String(right.time || '00:00');
+      if (leftTime === rightTime) return String(right.id).localeCompare(String(left.id));
+      return rightTime.localeCompare(leftTime);
+    }
     return right.date.localeCompare(left.date);
   });
 }

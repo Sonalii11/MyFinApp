@@ -48,6 +48,35 @@ export function MonthlyBudgetPreviewCard({ summary, onOpenBudgetSetup }) {
         {summary.remaining >= 0 ? 'Monthly budget is still within limit.' : 'Monthly budget limit has been crossed.'}
       </div>
 
+      {summary.weeks?.length ? (
+        <div className="dashboard-rollup-weeks">
+          <div className="dashboard-rollup-header">
+            <span className="dashboard-section-label">Monthly week-by-week spend</span>
+          </div>
+          <div className="dashboard-rollup-grid">
+            {summary.weeks.map((week) => (
+              <div key={week.id} className={`dashboard-rollup-week dashboard-rollup-week-${week.tone}`}>
+                <div className="dashboard-rollup-week-top">
+                  <strong>{week.label}</strong>
+                  <span>{week.percentageUsed.toFixed(0)}%</span>
+                </div>
+                <div className="dashboard-rollup-week-range">{week.rangeLabel}</div>
+                <div className="dashboard-rollup-track">
+                  <div
+                    className={`dashboard-rollup-fill dashboard-rollup-fill-${week.tone}`}
+                    style={{ width: `${Math.min(100, Math.max(8, week.percentageUsed || 0))}%` }}
+                  />
+                </div>
+                <div className="dashboard-rollup-meta">
+                  <span>{formatCurrency(week.spent)} spent</span>
+                  <span>{formatCurrency(week.planned)} plan</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="dashboard-inline-actions">
         <Btn variant="outline" size="sm" onClick={onOpenBudgetSetup}>Open budget setup</Btn>
       </div>

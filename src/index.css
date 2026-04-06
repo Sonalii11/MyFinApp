@@ -1369,6 +1369,93 @@ h1, h2, h3, h4 { font-family: 'Syne', sans-serif; }
   color: #ffb4c6;
 }
 
+.dashboard-rollup-weeks {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-rollup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dashboard-rollup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.dashboard-rollup-week {
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-rollup-week-safe {
+  background: rgba(34,212,160,0.08);
+}
+
+.dashboard-rollup-week-warning {
+  background: rgba(245,166,35,0.10);
+}
+
+.dashboard-rollup-week-danger {
+  background: rgba(240,92,122,0.10);
+}
+
+.dashboard-rollup-week-top,
+.dashboard-rollup-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.dashboard-rollup-week-top strong {
+  font-size: 13px;
+}
+
+.dashboard-rollup-week-top span {
+  font-size: 18px;
+  font-family: 'Syne', sans-serif;
+}
+
+.dashboard-rollup-week-range,
+.dashboard-rollup-meta {
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.dashboard-rollup-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  overflow: hidden;
+}
+
+.dashboard-rollup-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.dashboard-rollup-fill-safe {
+  background: linear-gradient(90deg, var(--green), #9be8cf);
+}
+
+.dashboard-rollup-fill-warning {
+  background: linear-gradient(90deg, var(--orange), #ffd194);
+}
+
+.dashboard-rollup-fill-danger {
+  background: linear-gradient(90deg, var(--red), #ffb3c3);
+}
+
 .dashboard-grid-section {
   display: flex;
   flex-direction: column;
@@ -1505,6 +1592,9 @@ h1, h2, h3, h4 { font-family: 'Syne', sans-serif; }
   .dashboard-monthly-layout {
     flex-direction: column;
     align-items: stretch;
+  }
+  .dashboard-rollup-grid {
+    grid-template-columns: 1fr;
   }
   .dashboard-header-actions {
     width: 100%;

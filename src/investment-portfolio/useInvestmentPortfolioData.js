@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { loadJSON, saveJSON } from '../utils/storage';
 import { formatCurrency } from '../utils/finance';
 import {
   createEmptyInvestmentTransactionForm,
@@ -13,58 +12,25 @@ import {
   buildGoalRows,
   buildFundingAccounts,
   buildAccountImpactPreview,
+  buildTransactionLedger,
   buildDashboardSnapshot,
-  getInvestmentEventMap,
   normalizeInvestmentTransactionPayload,
   getTransactionTypeOptions,
   getAssetTypeOptions,
   getPortfolioTimeRanges,
 } from './selectors';
 import {
-  getInvestmentAssets,
-  getInvestmentTransactions,
-  getInvestmentGoals,
   getLinkedFundingAccounts,
-  getPortfolioPrices,
   getPortfolioAnalyticsFeed,
 } from './services';
-
-const STORAGE_KEYS = {
-  assets: 'finsphere.investments.assets',
-  prices: 'finsphere.investments.prices',
-  transactions: 'finsphere.investments.transactions',
-  goals: 'finsphere.investments.goals',
-};
-
-function deductFromWallet(account, amount) {
-  return {
-    accountId: account?.id || '',
-    accountName: account?.name || 'Wallet account',
-    amount: Number(amount) || 0,
-    direction: 'debit',
-  };
-}
-
-function addToWallet(account, amount) {
-  return {
-    accountId: account?.id || '',
-    accountName: account?.name || 'Wallet account',
-    amount: Number(amount) || 0,
-    direction: 'credit',
-  };
-}
 
 export function useInvestmentPortfolio() {
   const app = useApp();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [assets, setAssets] = useState(() => loadJSON(STORAGE_KEYS.assets, []));
   const [baseAccounts, setBaseAccounts] = useState([]);
-  const [prices, setPrices] = useState(() => loadJSON(STORAGE_KEYS.prices, {}));
   const [performanceFeed, setPerformanceFeed] = useState({});
-  const [transactions, setTransactions] = useState(() => loadJSON(STORAGE_KEYS.transactions, []));
-  const [goals, setGoals] = useState(() => loadJSON(STORAGE_KEYS.goals, []));
   const [assetTypeFilter, setAssetTypeFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('6m');
   const [formError, setFormError] = useState('');
@@ -90,21 +56,13 @@ export function useInvestmentPortfolio() {
       setLoading(true);
       setError(null);
       try {
-        const [assetSeed, transactionSeed, goalSeed, accountSeed, priceSeed, analyticsSeed] = await Promise.all([
-          getInvestmentAssets(),
-          getInvestmentTransactions(),
-          getInvestmentGoals(),
+        const [accountSeed, analyticsSeed] = await Promise.all([
           getLinkedFundingAccounts(),
-          getPortfolioPrices(),
           getPortfolioAnalyticsFeed(),
         ]);
         if (cancelled) return;
-        setAssets((current) => (Array.isArray(current) && current.length ? current : assetSeed));
         setBaseAccounts(accountSeed);
-        setPrices((current) => (current && Object.keys(current).length ? current : priceSeed));
         setPerformanceFeed(analyticsSeed);
-        setTransactions((current) => (Array.isArray(current) && current.length ? current : transactionSeed));
-        setGoals((current) => (Array.isArray(current) && current.length ? current : goalSeed));
         setLoading(false);
       } catch (err) {
         if (cancelled) return;
@@ -119,21 +77,10 @@ export function useInvestmentPortfolio() {
     };
   }, [reloadToken]);
 
-  useEffect(() => {
-    saveJSON(STORAGE_KEYS.assets, assets);
-  }, [assets]);
-
-  useEffect(() => {
-    saveJSON(STORAGE_KEYS.prices, prices);
-  }, [prices]);
-
-  useEffect(() => {
-    saveJSON(STORAGE_KEYS.transactions, transactions);
-  }, [transactions]);
-
-  useEffect(() => {
-    saveJSON(STORAGE_KEYS.goals, goals);
-  }, [goals]);
+  const assets = app.investmentAssets;
+  const prices = app.investmentPrices;
+  const transactions = app.investmentTransactions;
+  const goals = app.investmentGoals;
 
   const holdings = useMemo(
     () => addAllocationShare(buildInvestmentHoldings(assets, transactions, prices)),
@@ -174,6 +121,10 @@ export function useInvestmentPortfolio() {
     () => buildFundingAccounts(baseAccounts, transactions),
     [baseAccounts, transactions]
   );
+  const portfolioTransactions = useMemo(
+    () => buildTransactionLedger(transactions, assets, fundingAccounts),
+    [transactions, assets, fundingAccounts]
+  );
   const accountImpactPreview = useMemo(
     () => buildAccountImpactPreview(fundingAccounts, formState),
     [fundingAccounts, formState]
@@ -190,6 +141,24 @@ export function useInvestmentPortfolio() {
   function openCreateForm(type = 'buy') {
     setFormError('');
     setFormState(createEmptyInvestmentTransactionForm(type));
+  }
+
+  function openEditTransaction(transaction) {
+    setFormError('');
+    setFormState(createEmptyInvestmentTransactionForm(transaction.type, {
+      id: transaction.id,
+      assetId: transaction.assetId,
+      accountId: transaction.accountId,
+      date: transaction.date,
+      time: transaction.time,
+      amount: transaction.amount,
+      quantity: transaction.quantity,
+      pricePerUnit: transaction.pricePerUnit,
+      fees: transaction.fees,
+      notes: transaction.notes,
+      linkedGoalId: transaction.linkedGoalId,
+      schedule: transaction.schedule,
+    }));
   }
 
   function openAssetCreateForm() {
@@ -236,14 +205,7 @@ export function useInvestmentPortfolio() {
       color: assetDraft.color || '#4fc3f7',
     };
 
-    setAssets((current) => {
-      const exists = current.some((item) => item.id === nextId);
-      return exists ? current.map((item) => (item.id === nextId ? nextAsset : item)) : [nextAsset, ...current];
-    });
-    setPrices((current) => ({
-      ...current,
-      [nextId]: Number(assetDraft.currentPrice) || 0,
-    }));
+    app.upsertInvestmentAsset(nextAsset, assetDraft.currentPrice);
     setAssetDraft({
       id: '',
       name: '',
@@ -257,15 +219,7 @@ export function useInvestmentPortfolio() {
   }
 
   function removeAsset(assetId) {
-    const asset = assets.find((item) => item.id === assetId);
-    setAssets((current) => current.filter((item) => item.id !== assetId));
-    setTransactions((current) => current.filter((item) => item.assetId !== assetId));
-    setPrices((current) => {
-      const next = { ...current };
-      delete next[assetId];
-      return next;
-    });
-    if (asset) app.showToast(`Asset "${asset.name}" removed`, 'error');
+    app.removeInvestmentAsset(assetId);
   }
 
   function saveTransaction() {
@@ -276,44 +230,29 @@ export function useInvestmentPortfolio() {
     }
 
     const payload = normalizeInvestmentTransactionPayload(formState, assets, prices);
-    const actionLabel = payload.type.replace('-', ' ');
     const selectedAccount = fundingAccounts.find((account) => account.id === payload.accountId);
-
-    if (payload.type === 'buy') {
-      deductFromWallet(selectedAccount, payload.amount);
+    const actionPayload = {
+      ...payload,
+      accountName: selectedAccount?.name || accountImpactPreview.accountName,
+    };
+    const isEdit = Boolean(formState.id && transactions.some((transaction) => transaction.id === formState.id));
+    const result = isEdit
+      ? app.updateInvestmentTransaction(formState.id, actionPayload)
+      : payload.type === 'buy'
+        ? app.buyAsset(actionPayload)
+        : payload.type === 'sell'
+          ? app.sellAsset(actionPayload)
+          : app.addDividend(actionPayload);
+    if (!result?.ok) {
+      setFormError(
+        result?.reason === 'insufficient_balance'
+          ? 'Not enough wallet balance to complete this action.'
+          : result?.reason === 'insufficient_quantity'
+            ? 'Not enough units to sell.'
+            : 'Unable to save this portfolio transaction.'
+      );
+      return;
     }
-
-    if (payload.type === 'sell' || payload.type === 'dividend') {
-      addToWallet(selectedAccount, payload.amount);
-    }
-
-    setTransactions((current) => [payload, ...current]);
-
-    if (payload.type === 'dividend') {
-      app.addIncome({
-        title: `${payload.assetName || 'Investment'} dividend`,
-        category: 'Investment Return',
-        amount: payload.amount,
-        date: payload.date,
-        time: payload.time,
-        account: selectedAccount?.name || accountImpactPreview.accountName,
-        notes: payload.notes,
-      });
-    }
-
-    // Future global sync: publish to wallet/shared store here so Wallet and Dashboard consume one canonical investment event stream.
-    app.notifyInvestmentTransaction({
-      transactionId: payload.id,
-      type: payload.type,
-      amount: payload.amount,
-      assetId: payload.assetId,
-      accountId: payload.accountId,
-      dashboardSnapshot,
-    });
-
-    app.showToast(
-      `${actionLabel.charAt(0).toUpperCase()}${actionLabel.slice(1)} saved for ${payload.assetName || 'portfolio funding'}`
-    );
     openCreateForm(formState.type);
   }
 
@@ -336,7 +275,7 @@ export function useInvestmentPortfolio() {
       projectedMonthsRemaining: 0,
     };
 
-    setGoals((current) => [nextGoal, ...current]);
+    app.addInvestmentGoal(nextGoal);
     setGoalDraft({
       name: '',
       targetAmount: '',
@@ -353,12 +292,12 @@ export function useInvestmentPortfolio() {
     loading,
     error,
     isEmpty: !holdings.length && !transactions.length,
-    eventMap: getInvestmentEventMap(),
     data: {
       overview,
       holdings: assetRows,
       allHoldings: holdings,
       assets,
+      portfolioTransactions,
       analytics,
       goals: goalRows,
       fundingAccounts,
@@ -382,8 +321,10 @@ export function useInvestmentPortfolio() {
       setAssetTypeFilter,
       setTimeRange,
       openCreateForm,
+      openEditTransaction,
       updateFormField,
       saveTransaction,
+      deleteInvestmentTransaction: app.deleteInvestmentTransaction,
       setGoalDraft,
       saveGoal,
       setAssetDraft,
@@ -391,9 +332,7 @@ export function useInvestmentPortfolio() {
       editAsset,
       saveAsset,
       removeAsset,
-      openAssetDetails: (assetId) => app.showToast(`Open asset details for ${assetId}`),
-      deductFromWallet,
-      addToWallet,
+      openAssetDetails: () => {},
     },
   };
 }

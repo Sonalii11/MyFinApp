@@ -1,16 +1,21 @@
 import {
+  addDays,
   calculateBudgetProgress,
   calculateExpense,
   calculateIncome,
   formatDateKey,
+  formatRangeLabel,
   getTransactionsForLast4Weeks,
   getTransactionsForMonthRollup,
   getTransactionsForWeek,
   getTransactionsForYear,
+  parseISODate,
   sortTransactionsNewestFirst,
   startOfWeek,
 } from '../utils/budgeting';
 import { formatCurrency, formatShortDate, getRenewalDaysLeft } from '../utils/finance';
+import { addAllocationShare, buildInvestmentHoldings, buildPortfolioOverview } from '../investment-portfolio/selectors';
+import { getNetCashFlow, getRecentWalletTransactions, getTotalBalance, getWeeklyWalletExpense, getWeeklyWalletIncome } from '../context/selectors';
 
 export function getDashboardGreeting(userName, date = new Date()) {
   const hour = date.getHours();
@@ -47,7 +52,21 @@ export function getWeeklyBudgetSummary({
   activeWeekStart,
   weeklyBudgetLimit,
   carryForwardAmount = 0,
+  weeklySummaries = [],
 }) {
+  const latestDerived = weeklySummaries[weeklySummaries.length - 1];
+  if (latestDerived) {
+    const effectiveBudget = latestDerived.planned + carryForwardAmount;
+    const progress = calculateBudgetProgress(latestDerived.spent, effectiveBudget);
+    return {
+      budget: effectiveBudget,
+      spent: latestDerived.spent,
+      carryForwardAmount,
+      remaining: progress.isOverspent ? -progress.overspendAmount : progress.remaining,
+      percentageUsed: progress.usedPercent,
+      status: getWeeklyBudgetStatus(progress.usedPercent),
+    };
+  }
   const weekTransactions = getTransactionsForWeek(transactions, activeWeekStart);
   const spent = calculateExpense(weekTransactions);
   const effectiveBudget = weeklyBudgetLimit + carryForwardAmount;
@@ -65,10 +84,53 @@ export function getWeeklyBudgetSummary({
 export function getMonthlyBudgetSummary({
   transactions,
   activeWeekStart,
+  weeklyBudgetLimit,
   monthlyBudgetLimit,
 }) {
-  const monthlyTransactions = getTransactionsForMonthRollup(transactions, activeWeekStart);
-  const spent = calculateExpense(monthlyTransactions);
+  const baseDate = parseISODate(activeWeekStart || new Date());
+  const monthStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1, 12);
+  const monthEnd = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0, 12);
+  const monthStartKey = formatDateKey(monthStart);
+  const monthEndKey = formatDateKey(monthEnd);
+  const monthTransactions = transactions.filter((transaction) => transaction.date >= monthStartKey && transaction.date <= monthEndKey);
+  const weeks = [];
+  let currentStart = new Date(monthStart);
+
+  while (currentStart <= monthEnd) {
+    const endOffset = 6 - currentStart.getDay();
+    const currentEnd = addDays(currentStart, Math.max(0, endOffset));
+    const visibleEnd = currentEnd > monthEnd ? monthEnd : currentEnd;
+    const startKey = formatDateKey(currentStart);
+    const endKey = formatDateKey(visibleEnd);
+    const weekTransactions = monthTransactions.filter(
+      (transaction) => transaction.date >= startKey && transaction.date <= endKey
+    );
+    weeks.push({
+      start: new Date(currentStart),
+      end: new Date(visibleEnd),
+      transactions: weekTransactions,
+    });
+    currentStart = addDays(visibleEnd, 1);
+  }
+
+  const weekCount = weeks.length;
+  const weeklyLimit = Number(weeklyBudgetLimit || monthlyBudgetLimit / Math.max(1, weekCount) || 0);
+  const weekSummaries = weeks.map((week, index) => {
+    const spent = calculateExpense(week.transactions);
+    const progress = calculateBudgetProgress(spent, weeklyLimit);
+    const status = getMonthlyBudgetStatus(progress.usedPercent);
+    return {
+      id: formatDateKey(week.start),
+      label: `Week ${index + 1}`,
+      rangeLabel: formatRangeLabel(week.start, week.end),
+      planned: weeklyLimit,
+      spent,
+      percentageUsed: progress.usedPercent,
+      status,
+      tone: getBudgetTone(status),
+    };
+  });
+  const spent = calculateExpense(monthTransactions);
   const progress = calculateBudgetProgress(spent, monthlyBudgetLimit);
   return {
     limit: monthlyBudgetLimit,
@@ -76,6 +138,7 @@ export function getMonthlyBudgetSummary({
     remaining: progress.isOverspent ? -progress.overspendAmount : progress.remaining,
     percentageUsed: progress.usedPercent,
     status: getMonthlyBudgetStatus(progress.usedPercent),
+    weeks: weekSummaries,
   };
 }
 
@@ -83,6 +146,7 @@ export function getTransactionPreviewList(transactions, categoryMeta, limit = 5)
   return sortTransactionsNewestFirst(transactions).slice(0, limit).map((transaction) => ({
     id: transaction.id,
     type: transaction.type,
+    title: transaction.title,
     category: transaction.category,
     categoryIcon: categoryMeta[transaction.category]?.icon || '•',
     linkedAccount: transaction.account || 'Primary account',
@@ -142,21 +206,27 @@ export function getUpcomingSubscriptions(subscriptions, limit = 3) {
     }));
 }
 
-export function getWalletPreview(walletBalance) {
+export function getWalletPreview(appState) {
   return {
-    totalBalance: walletBalance,
+    totalBalance: getTotalBalance(appState),
     availableCredit: 18000,
     currency: 'INR',
+    weeklyIncome: getWeeklyWalletIncome(appState),
+    weeklyExpense: getWeeklyWalletExpense(appState),
+    netCashFlow: getNetCashFlow(appState),
+    recentTransactions: getRecentWalletTransactions(appState, undefined, 4),
   };
 }
 
-export function getInvestmentPreview(investments) {
-  const portfolioValue = investments.stocks.reduce((sum, stock) => sum + stock.val, 0);
-  const gainLossAmount = Math.round(portfolioValue * 0.084);
+export function getInvestmentPreview({ investmentAssets = [], investmentTransactions = [], investmentPrices = {} }) {
+  const holdings = addAllocationShare(buildInvestmentHoldings(investmentAssets, investmentTransactions, investmentPrices));
+  const overview = buildPortfolioOverview(holdings);
+  const portfolioValue = overview.totalValue;
+  const gainLossAmount = overview.gainLoss;
   return {
     portfolioValue,
     gainLossAmount,
-    gainLossPercent: 8.4,
+    gainLossPercent: overview.gainLossPercent,
     currency: 'INR',
   };
 }
@@ -190,11 +260,12 @@ export function getDashboardContentCards() {
 }
 
 export function buildDashboardSnapshot(appState) {
+  const transactions = appState.transactions || [];
   const activeWeekStart = appState.activeWeekStart || formatDateKey(startOfWeek(new Date()));
-  const weekTransactions = getTransactionsForWeek(appState.transactions, activeWeekStart);
-  const monthTransactions = getTransactionsForMonthRollup(appState.transactions, activeWeekStart);
-  const yearTransactions = getTransactionsForYear(appState.transactions, activeWeekStart);
-  const zeroUpcomingSubscriptions = getUpcomingSubscriptions(appState.subscriptions).map((item) => ({
+  const weekTransactions = getTransactionsForWeek(transactions, activeWeekStart);
+  const monthTransactions = getTransactionsForMonthRollup(transactions, activeWeekStart);
+  const yearTransactions = getTransactionsForYear(transactions, activeWeekStart);
+  const zeroUpcomingSubscriptions = getUpcomingSubscriptions(appState.subscriptions || []).map((item) => ({
     ...item,
     cost: 0,
   }));
@@ -208,66 +279,31 @@ export function buildDashboardSnapshot(appState) {
       membership: 'Premium',
     },
     cashFlowByPeriod: {
-      week: {
-        period: 'week',
-        income: 0,
-        spending: 0,
-        netBalance: 0,
-        currency: 'INR',
-      },
-      month: {
-        period: 'month',
-        income: 0,
-        spending: 0,
-        netBalance: 0,
-        currency: 'INR',
-      },
-      year: {
-        period: 'year',
-        income: 0,
-        spending: 0,
-        netBalance: 0,
-        currency: 'INR',
-      },
+      week: getCashFlowSummaryFromTransactions('week', weekTransactions),
+      month: getCashFlowSummaryFromTransactions('month', monthTransactions),
+      year: getCashFlowSummaryFromTransactions('year', yearTransactions),
     },
-    recentTransactions: getTransactionPreviewList(appState.transactions, appState.CAT_META),
-    weeklyBudget: {
-      budget: 0,
-      spent: 0,
-      carryForwardAmount: 0,
-      remaining: 0,
-      percentageUsed: 0,
-      status: 'on-track',
-    },
-    monthlyBudget: {
-      limit: 0,
-      spent: 0,
-      remaining: 0,
-      percentageUsed: 0,
-      status: 'healthy',
-    },
-    weeklyComparison: {
-      currentWeekSpend: 0,
-      lastWeekSpend: 0,
-      differenceAmount: 0,
-      trendDirection: 'flat',
-    },
-    categoryHighlight: null,
+    recentTransactions: getTransactionPreviewList(transactions, appState.CAT_META || {}),
+    weeklyBudget: getWeeklyBudgetSummary({
+      transactions,
+      activeWeekStart,
+      weeklyBudgetLimit: appState.weeklyBudgetLimit,
+      weeklySummaries: appState.weeklySummaries,
+    }),
+    monthlyBudget: getMonthlyBudgetSummary({
+      transactions,
+      activeWeekStart,
+      weeklyBudgetLimit: appState.weeklyBudgetLimit,
+      monthlyBudgetLimit: appState.monthlyBudgetLimit,
+    }),
+    weeklyComparison: getWeeklyComparison(transactions, activeWeekStart),
+    categoryHighlight: getHighestSpendCategory(transactions, activeWeekStart, appState.CAT_META || {}),
     upcomingSubscriptions: zeroUpcomingSubscriptions,
-    walletPreview: {
-      totalBalance: 0,
-      availableCredit: 0,
-      currency: 'INR',
-    },
-    investmentPreview: {
-      portfolioValue: 0,
-      gainLossAmount: 0,
-      gainLossPercent: 0,
-      currency: 'INR',
-    },
-    aiInsights: getAIInsightPreviews(appState.uiData.aiInsights),
+    walletPreview: getWalletPreview(appState),
+    investmentPreview: getInvestmentPreview(appState),
+    aiInsights: getAIInsightPreviews(appState.uiData?.aiInsights || []),
     contentCards: getDashboardContentCards(),
-    isEmpty: !appState.transactions.length,
+    isEmpty: !transactions.length,
   };
 }
 

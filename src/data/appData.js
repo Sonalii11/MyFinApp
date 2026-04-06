@@ -40,10 +40,10 @@ export const INITIAL_WALLET = {
   balance: 124680.5,
   quickAmounts: [100, 200, 500, 1000],
   quickActions: [
-    { label: 'Send', icon: '↗', bg: 'rgba(124,109,250,0.2)', color: 'var(--accent)' },
-    { label: 'Receive', icon: '↙', bg: 'rgba(34,212,160,0.2)', color: 'var(--green)' },
-    { label: 'Scan QR', icon: '▦', bg: 'rgba(245,166,35,0.2)', color: 'var(--orange)' },
-    { label: 'Add Card', icon: '＋', bg: 'rgba(244,114,182,0.2)', color: 'var(--pink)' },
+    { label: 'Add Income', icon: '↙', bg: 'rgba(34,212,160,0.2)', color: 'var(--green)' },
+    { label: 'Add Expense', icon: '↗', bg: 'rgba(240,92,122,0.16)', color: 'var(--pink)' },
+    { label: 'Transfer', icon: '⇄', bg: 'rgba(124,109,250,0.2)', color: 'var(--accent)' },
+    { label: 'Adjust Balance', icon: '＋', bg: 'rgba(245,166,35,0.2)', color: 'var(--orange)' },
   ],
   transactions: [
     { id: 1, name: 'Rahul Sharma', type: 'sent', amount: 500, time: '2h ago' },

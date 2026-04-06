@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { formatDateKey } from '../utils/budgeting';
 import { getExpenseTrackerAccounts, getExpenseTrackerBudgetConfig, getExpenseTrackerCategories, getExpenseTrackerReferenceData, getExpenseTrackerTags } from './services';
 import {
   applyHistoryFilters,
@@ -83,8 +84,15 @@ export function useExpenseTrackerData() {
   }, []);
 
   const accounts = useMemo(
-    () => buildAccountsWithBalances(accountsSeed, app.transactions),
-    [accountsSeed, app.transactions]
+    () => (app.accounts || []).map((account) => ({
+      id: account.id,
+      name: account.name,
+      kind: account.type,
+      baseBalance: account.balance,
+      balance: account.balance,
+      currency: account.currency || 'INR',
+    })),
+    [app.accounts]
   );
 
   const historyTransactions = useMemo(
@@ -144,6 +152,7 @@ export function useExpenseTrackerData() {
       date: transaction.date,
       time: transaction.time || '09:00',
       amount: String(transaction.amount),
+      frequency: 'one-time',
       calculatorExpression: '',
       category: transaction.category || '',
       account: transaction.account || '',
@@ -204,6 +213,7 @@ export function useExpenseTrackerData() {
       date: formState.date,
       time: formState.time,
       amount: Number(formState.amount),
+      frequency: formState.frequency,
       category: formState.type === 'transfer' ? 'Transfer' : formState.category,
       account: formState.type === 'transfer' ? formState.fromAccount : formState.account,
       fromAccount: formState.fromAccount,

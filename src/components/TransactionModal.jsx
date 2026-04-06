@@ -7,6 +7,7 @@ const EMPTY_FORM = {
   amount: '',
   category: '',
   date: '',
+  frequency: 'one-time',
   account: '',
   notes: '',
 };
@@ -102,6 +103,7 @@ export default function TransactionModal({ type, onClose }) {
       amount: Number(form.amount),
       category: form.category,
       date: form.date,
+      frequency: form.frequency,
       account: form.account.trim(),
       notes: form.notes.trim(),
     };
@@ -142,6 +144,18 @@ export default function TransactionModal({ type, onClose }) {
             required
           />
         </div>
+
+        <Select
+          label="FREQUENCY"
+          value={form.frequency}
+          onChange={(event) => updateField('frequency', event.target.value)}
+          options={[
+            { value: 'one-time', label: 'One-time' },
+            { value: 'weekly', label: 'Weekly' },
+            { value: 'monthly', label: 'Monthly' },
+            { value: 'annual', label: 'Annual' },
+          ]}
+        />
 
         <Select
           label="CATEGORY"

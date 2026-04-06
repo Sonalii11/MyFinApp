@@ -139,6 +139,18 @@ export function AddTransactionPanel({ data, state, actions, customCategoryManage
           <Input label="TIME" type="time" value={formState.time} onChange={(event) => actions.updateFormField('time', event.target.value)} />
         </div>
 
+        <Select
+          label="FREQUENCY"
+          value={formState.frequency}
+          onChange={(event) => actions.updateFormField('frequency', event.target.value)}
+          options={[
+            { value: 'one-time', label: 'One-time' },
+            { value: 'weekly', label: 'Weekly' },
+            { value: 'monthly', label: 'Monthly' },
+            { value: 'annual', label: 'Annual' },
+          ]}
+        />
+
         <AmountInputWithCalculator
           amount={formState.amount}
           expression={formState.calculatorExpression}

@@ -5,13 +5,13 @@ import { formatCurrency } from '../../utils/finance';
 export function TransactionPreviewItem({ transaction, onOpen }) {
   return (
     <button type="button" className="transaction-preview-item" onClick={() => onOpen(transaction)}>
-      <div className="transaction-preview-leading">
-        <div className="transaction-preview-icon">{transaction.categoryIcon}</div>
-        <div>
-          <div className="tx-name">{transaction.category}</div>
-          <div className="tx-meta">{transaction.linkedAccount} · {transaction.displayDateLabel}</div>
+        <div className="transaction-preview-leading">
+          <div className="transaction-preview-icon">{transaction.categoryIcon}</div>
+          <div>
+            <div className="tx-name">{transaction.title || transaction.category}</div>
+            <div className="tx-meta">{transaction.linkedAccount} · {transaction.displayDateLabel}</div>
+          </div>
         </div>
-      </div>
       <div className={`transaction-preview-amount ${transaction.type === 'income' ? 'up' : transaction.type === 'transfer' ? 'neutral' : 'down'}`}>
         {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : ''}{formatCurrency(transaction.amount)}
       </div>

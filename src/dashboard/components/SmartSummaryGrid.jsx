@@ -68,7 +68,8 @@ export function WalletBalancePreviewCard({ data, onOpen }) {
       {data ? (
         <>
           <div className="dashboard-smart-stat">{formatCurrency(data.totalBalance)}</div>
-          <div className="dashboard-smart-sub">Available credit {formatCurrency(data.availableCredit || 0)}</div>
+          <div className="dashboard-smart-sub">This week {data.netCashFlow >= 0 ? '+' : '-'}{formatCurrency(Math.abs(data.netCashFlow || 0))}</div>
+          <div className="tx-meta">Income {formatCurrency(data.weeklyIncome || 0)} · Expense {formatCurrency(data.weeklyExpense || 0)}</div>
         </>
       ) : <div className="dashboard-empty-inline">Wallet connection placeholder.</div>}
     </SmartCard>

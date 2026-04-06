@@ -28,6 +28,7 @@ export function createEmptyTransactionForm(type = 'expense') {
     date: formatDateKey(new Date()),
     time: '09:00',
     amount: '',
+    frequency: 'one-time',
     calculatorExpression: '',
     category: type === 'income' ? 'Salary' : type === 'transfer' ? 'Transfer' : 'Food',
     account: '',
@@ -46,6 +47,7 @@ export function validateTransactionForm(form) {
   if (!Number(form.amount) || Number(form.amount) <= 0) return 'Please enter a valid amount.';
   if (!form.date) return 'Please select a date.';
   if (!form.time) return 'Please select a time.';
+  if (!form.frequency) return 'Please choose a frequency.';
   if (form.type === 'transfer') {
     if (!form.fromAccount || !form.toAccount) return 'Please choose both accounts for a transfer.';
     if (form.fromAccount === form.toAccount) return 'Transfer accounts must be different.';
